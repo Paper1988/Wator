@@ -1,5 +1,12 @@
-import { useCallback, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+    Animated,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
+    useColorScheme,
+} from "react-native";
 import { useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -9,14 +16,168 @@ import {
     undoLastWater,
 } from "@/storage/database";
 import { Undo2 } from "lucide-react-native";
-import { useColorScheme } from "react-native";
 import { getColors } from "@/constants/theme";
-import { sendTestNotification } from "@/features/reminder/reminder.service";
+
+const DIGIT_HEIGHT = 76;
+
+type AnimationDirection = "up" | "down";
+
+function AnimatedDigit({
+    digit,
+    previousDigit,
+    color,
+    direction,
+}: {
+    digit: string;
+    previousDigit: string;
+    color: string;
+    direction: AnimationDirection;
+}) {
+    const translateY = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        if (digit === previousDigit) {
+            return;
+        }
+
+        translateY.stopAnimation();
+
+        const isUp = direction === "up";
+
+        translateY.setValue(isUp ? 0 : -DIGIT_HEIGHT);
+
+        const animation = Animated.timing(translateY, {
+            toValue: isUp ? -DIGIT_HEIGHT : 0,
+            duration: 180,
+            useNativeDriver: true,
+        });
+
+        animation.start();
+
+        return () => {
+            animation.stop();
+        };
+    }, [digit, previousDigit, direction, translateY]);
+
+    if (digit === previousDigit) {
+        return (
+            <View style={styles.digitWindow}>
+                <Text
+                    style={[
+                        styles.amount,
+                        styles.digit,
+                        { color },
+                    ]}
+                >
+                    {digit}
+                </Text>
+            </View>
+        );
+    }
+
+    const oldDigit = (
+        <Text
+            style={[
+                styles.amount,
+                styles.digit,
+                { color },
+            ]}
+        >
+            {previousDigit}
+        </Text>
+    );
+
+    const newDigit = (
+        <Text
+            style={[
+                styles.amount,
+                styles.digit,
+                { color },
+            ]}
+        >
+            {digit}
+        </Text>
+    );
+
+    return (
+        <View style={styles.digitWindow}>
+            <Animated.View
+                style={[
+                    styles.digitStack,
+                    {
+                        transform: [{ translateY }],
+                    },
+                ]}
+            >
+                {direction === "up" ? (
+                    <>
+                        {oldDigit}
+                        {newDigit}
+                    </>
+                ) : (
+                    <>
+                        {newDigit}
+                        {oldDigit}
+                    </>
+                )}
+            </Animated.View>
+        </View>
+    );
+}
+
+function AnimatedAmount({
+    value,
+    color,
+    unitColor,
+}: {
+    value: number;
+    color: string;
+    unitColor: string;
+}) {
+    const currentValue = String(value);
+    const previousValue = useRef(currentValue);
+    const previous = previousValue.current;
+
+    const length = Math.max(previous.length, currentValue.length);
+    const previousDigits = previous.padStart(length, " ");
+    const currentDigits = currentValue.padStart(length, " ");
+
+    const overallDirection: AnimationDirection =
+        value >= Number(previous) ? "up" : "down";
+
+    useEffect(() => {
+        previousValue.current = currentValue;
+    }, [currentValue]);
+
+    return (
+        <View style={styles.amountRow}>
+            {currentDigits.split("").map((digit, index) => {
+                const previousDigit = previousDigits[index];
+
+                return (
+                    <AnimatedDigit
+                        key={index}
+                        digit={digit}
+                        previousDigit={previousDigit}
+                        color={color}
+                        direction={overallDirection}
+                    />
+                );
+            })}
+
+            <Text style={[styles.unit, { color: unitColor }]}>mL</Text>
+        </View>
+    );
+}
 
 export default function HomeScreen() {
     const [water, setWater] = useState(0);
     const [dailyGoal, setDailyGoal] = useState(2000);
     const [waterAmount, setWaterAmount] = useState(250);
+
+    const goalReachedOpacity = useRef(new Animated.Value(0)).current;
+    const goalReachedTranslateY = useRef(new Animated.Value(4)).current;
+    const goalReachedScale = useRef(new Animated.Value(0.95)).current;
 
     const scheme = useColorScheme();
     const colors = getColors(scheme);
@@ -39,8 +200,35 @@ export default function HomeScreen() {
     );
 
     async function addWater() {
+        const nextWater = water + waterAmount;
+
         await saveWater(waterAmount);
-        setWater((current) => current + waterAmount);
+        setWater(nextWater);
+
+        if (water < dailyGoal && nextWater >= dailyGoal) {
+            goalReachedOpacity.setValue(0);
+            goalReachedTranslateY.setValue(4);
+            goalReachedScale.setValue(0.95);
+
+            Animated.parallel([
+                Animated.timing(goalReachedOpacity, {
+                    toValue: 1,
+                    duration: 350,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(goalReachedTranslateY, {
+                    toValue: 0,
+                    duration: 350,
+                    useNativeDriver: true,
+                }),
+                Animated.spring(goalReachedScale, {
+                    toValue: 1,
+                    friction: 7,
+                    tension: 100,
+                    useNativeDriver: true,
+                }),
+            ]).start();
+        }
     }
 
     async function undoWater() {
@@ -53,7 +241,9 @@ export default function HomeScreen() {
         setWater((current) => Math.max(current - amount, 0));
     }
 
-    const progress = Math.min(water / dailyGoal, 1);
+    const goalProgress = water / dailyGoal;
+    const progress = Math.min(goalProgress, 1);
+    const percentage = Math.round(goalProgress * 100);
 
     return (
         <SafeAreaView
@@ -61,10 +251,7 @@ export default function HomeScreen() {
         >
             <View style={styles.content}>
                 <View style={styles.header}>
-                    <Text style={[styles.appName, { color: colors.text }]}>
-                        Siply
-                    </Text>
-
+                    <Text style={[styles.appName, { color: colors.text }]}>Wator</Text>
                     <Text
                         style={[
                             styles.subtitle,
@@ -76,23 +263,13 @@ export default function HomeScreen() {
                 </View>
 
                 <View style={styles.progressSection}>
-                    <Text style={[styles.label, { color: colors.text }]}>
-                        Today
-                    </Text>
+                    <Text style={[styles.label, { color: colors.text }]}>Today</Text>
 
-                    <View style={styles.amountRow}>
-                        <Text style={[styles.amount, { color: colors.text }]}>
-                            {water}
-                        </Text>
-                        <Text
-                            style={[
-                                styles.unit,
-                                { color: colors.textSecondary },
-                            ]}
-                        >
-                            mL
-                        </Text>
-                    </View>
+                    <AnimatedAmount
+                        value={water}
+                        color={colors.text}
+                        unitColor={colors.textSecondary}
+                    />
 
                     <Text
                         style={[styles.goal, { color: colors.textSecondary }]}
@@ -113,7 +290,10 @@ export default function HomeScreen() {
                                 styles.progress,
                                 {
                                     width: `${progress * 100}%`,
-                                    backgroundColor: colors.primary,
+                                    backgroundColor:
+                                        water >= dailyGoal
+                                            ? colors.success
+                                            : colors.primary,
                                 },
                             ]}
                         />
@@ -122,11 +302,38 @@ export default function HomeScreen() {
                     <Text
                         style={[
                             styles.percentage,
-                            { color: colors.textSecondary },
+                            {
+                                color:
+                                    water >= dailyGoal
+                                        ? colors.success
+                                        : colors.textSecondary,
+                            },
                         ]}
                     >
-                        {Math.round(progress * 100)}%
+                        {percentage}%
                     </Text>
+
+                    {water >= dailyGoal && (
+                        <Animated.Text
+                            style={[
+                                styles.goalReached,
+                                {
+                                    color: colors.success,
+                                    opacity: goalReachedOpacity,
+                                    transform: [
+                                        {
+                                            translateY: goalReachedTranslateY,
+                                        },
+                                        {
+                                            scale: goalReachedScale,
+                                        },
+                                    ],
+                                },
+                            ]}
+                        >
+                            Goal reached 🎉
+                        </Animated.Text>
+                    )}
                 </View>
 
                 <View style={styles.buttonRow}>
@@ -135,10 +342,12 @@ export default function HomeScreen() {
                             styles.undoButton,
                             {
                                 backgroundColor: colors.surfaceSecondary,
+                                transform: [{ scale: pressed ? 0.92 : 1 }],
                             },
-                            pressed && styles.undoButtonPressed,
+                            water === 0 && styles.undoButtonDisabled,
                         ]}
                         onPress={undoWater}
+                        disabled={water === 0}
                     >
                         <Undo2 size={24} color={colors.text} strokeWidth={2} />
                     </Pressable>
@@ -148,15 +357,15 @@ export default function HomeScreen() {
                             styles.waterButton,
                             {
                                 backgroundColor: colors.primary,
+                                transform: [{ scale: pressed ? 0.96 : 1 }],
                             },
-                            pressed && styles.waterButtonPressed,
                         ]}
                         onPress={addWater}
                     >
                         <Text
                             style={[
                                 styles.waterButtonText,
-                                { color: colors.primaryText },
+                                { color: "#fff" },
                             ]}
                         >
                             + {waterAmount} mL
@@ -172,6 +381,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
+
     content: {
         flex: 1,
         paddingHorizontal: 24,
@@ -179,93 +389,118 @@ const styles = StyleSheet.create({
         paddingBottom: 24,
         justifyContent: "space-between",
     },
+
     header: {
         gap: 4,
     },
+
     appName: {
         fontSize: 32,
         fontWeight: "700",
     },
+
     subtitle: {
         fontSize: 16,
         opacity: 0.6,
     },
+
     progressSection: {
         alignItems: "center",
     },
+
     label: {
         fontSize: 18,
         fontWeight: "600",
         marginBottom: 12,
     },
+
     amountRow: {
         flexDirection: "row",
-        alignItems: "baseline",
+        alignItems: "center",
     },
+
     amount: {
         fontSize: 64,
         fontWeight: "700",
+        lineHeight: DIGIT_HEIGHT,
     },
+
+    digitWindow: {
+        height: DIGIT_HEIGHT,
+        overflow: "hidden",
+    },
+
+    digitStack: {},
+
+    digit: {
+        height: DIGIT_HEIGHT,
+        textAlign: "center",
+    },
+
     unit: {
         fontSize: 20,
         marginLeft: 6,
     },
+
     goal: {
         fontSize: 16,
         opacity: 0.5,
         marginTop: 4,
     },
+
     progressBackground: {
         width: "100%",
         height: 12,
         borderRadius: 6,
-        backgroundColor: "#e5e7eb",
         overflow: "hidden",
         marginTop: 28,
     },
+
     progress: {
         height: "100%",
         borderRadius: 6,
-        backgroundColor: "#3b82f6",
     },
+
     percentage: {
         fontSize: 14,
         marginTop: 8,
         opacity: 0.6,
     },
-    waterButtonPressed: {
-        opacity: 0.7,
-    },
-    waterButtonText: {
-        color: "#fff",
-        fontSize: 18,
-        fontWeight: "600",
-    },
+
     buttonRow: {
         flexDirection: "row",
         alignItems: "center",
         gap: 12,
     },
+
     undoButton: {
         width: 60,
         height: 60,
         borderRadius: 30,
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#e5e7eb",
     },
-    undoButtonPressed: {
-        opacity: 0.7,
+
+    undoButtonDisabled: {
+        opacity: 0.4,
     },
-    undoButtonText: {
-        fontSize: 28,
-    },
+
     waterButton: {
         flex: 1,
         height: 60,
         borderRadius: 30,
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#3b82f6",
+    },
+
+    waterButtonText: {
+        fontSize: 18,
+        fontWeight: "600",
+    },
+
+    goalReached: {
+        fontSize: 14,
+        fontWeight: "600",
+        marginTop: 8,
     },
 });
