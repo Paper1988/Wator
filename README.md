@@ -114,4 +114,4 @@ Wator is currently under active development.
 
 ## 📄 License
 
-This project is currently for personal and educational use.
+Wator is licensed under the MIT License.
