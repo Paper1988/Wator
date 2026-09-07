@@ -1,56 +1,117 @@
-# Welcome to your Expo app 👋
+# Wator 💧
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A simple hydration reminder app built with React Native and Expo.
 
-## Get started
+Wator helps you keep track of your daily water intake with a lightweight, local-first experience.
 
-1. Install dependencies
+## ✨ Features
 
-   ```bash
-   npm install
-   ```
+- 💧 Track daily water intake
+- 🎯 Customizable daily hydration goal
+- 🥤 Customizable quick-add drink amount
+- 📊 View hydration history
+- ↩️ Undo the latest drink record
+- 🔔 Configurable water reminders
+- 🌙 Light and dark themes
+- 💾 Local data storage with SQLite
+- 📱 Built for iOS with React Native and Expo
 
-2. Start the app
+## 🛠️ Tech Stack
 
-   ```bash
-   npx expo start
-   ```
+- React Native
+- Expo
+- TypeScript
+- Expo Router
+- Expo SQLite
+- Expo Notifications
+- Lucide React Native
+- pnpm
 
-In the output, you'll find options to open the app in a
+## 📱 Screens
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+> Screenshots coming soon.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## 🚀 Getting Started
 
-## Get a fresh project
+### Prerequisites
 
-When you're ready, run:
+- Node.js
+- pnpm
+- Expo Go
+
+### Installation
+
+Clone the repository:
 
 ```bash
-npm run reset-project
+git clone <repository-url>
+cd wator
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Install dependencies:
 
-### Other setup steps
+```bash
+pnpm install
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Start the development server:
 
-## Learn more
+```bash
+pnpm expo start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+Then scan the QR code with Expo Go to run the app on your device.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## 🗂️ Project Structure
 
-## Join the community
+```text
+src/
+├── app/
+│   ├── index.tsx
+│   ├── history.tsx
+│   └── settings.tsx
+├── components/
+├── features/
+│   ├── hydration/
+│   └── reminder/
+├── storage/
+│   └── database.ts
+└── constants/
+    └── hydration.ts
+```
 
-Join our community of developers creating universal apps.
+## 💾 Data & Privacy
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Wator uses local SQLite storage for hydration records and app settings.
+
+Your hydration data stays on your device and is not sent to a remote server.
+
+## 🧪 Development Status
+
+Wator is currently under active development.
+
+### Completed
+
+- [x] Home screen
+- [x] Hydration tracking
+- [x] SQLite persistence
+- [x] History
+- [x] Undo
+- [x] Settings
+- [x] Custom hydration goal
+- [x] Custom drink amount
+- [x] Light / dark theme
+- [x] Local notifications
+- [x] Configurable reminders
+
+### Planned
+
+- [ ] UI / UX polish
+- [ ] Improved hydration statistics
+- [ ] More detailed history
+- [ ] App icon and branding
+- [ ] First stable release
+
+## 📄 License
+
+This project is currently for personal and educational use.
